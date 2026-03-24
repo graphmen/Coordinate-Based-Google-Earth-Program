@@ -31,12 +31,12 @@ A high-performance, web-based tool designed for verifying geographic coordinates
 
 2. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
    ```
 
 3. **Run the app**:
    ```bash
-   streamlit run app.py
+   python -m streamlit run app.py
    ```
 
 ## ☁️ Deployment Guide

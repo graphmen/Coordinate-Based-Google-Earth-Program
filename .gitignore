@@ -7,6 +7,13 @@ venv/
 
 # Streamlit
 .streamlit/
+!.streamlit/config.toml
+
+# Data Files (Don't commit user uploads)
+*.xlsx
+*.csv
+*.xls
+~$*.xlsx
 
 # OS
 .DS_Store

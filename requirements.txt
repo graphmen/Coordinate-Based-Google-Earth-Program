@@ -4,4 +4,7 @@ folium
 streamlit-folium
 openpyxl
 simplekml
+geopandas
+pyogrio
+shapely
 pytest

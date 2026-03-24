@@ -4,6 +4,7 @@ import folium
 from streamlit_folium import st_folium
 import utils
 import io
+import os
 
 # Page Config
 st.set_page_config(
@@ -12,34 +13,57 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for modern look
+# Custom CSS for modern premium look
 st.markdown("""
-    <style>
-    .main {
-        background-color: #f8f9fa;
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Specific font override for main elements but NOT icons to avoid text like 'keyboard_double_Arrow_Right' */
+    html, body, div[data-testid="stAppViewContainer"], .stMarkdown, .stButton, .stMetric, .stSelectbox, .stTextInput, .stAlert, .stHeader { 
+        font-family: 'Inter', sans-serif; 
     }
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #2E86C1;
-        color: white;
+    .main { background-color: #f0f2f6; }
+    div[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e0e0e0; }
+    .stButton>button { width: 100%; border-radius: 12px; height: 3.5em; background: linear-gradient(135deg, #2E86C1 0%, #1B4F72 100%); color: white; font-weight: 600; border: none; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+    .stDataFrame { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); background: white; }
+    .stHeader { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.3); }
+    /* Compact buttons for exports */
+    .compact-btn div[data-testid="stColumn"] button {
+        font-size: 0.75rem !important;
+        height: 2.8rem !important;
+        min-height: 2.8rem !important;
+        padding: 0 5px !important;
     }
-    .stDataFrame {
-        border-radius: 10px;
-    }
-    .status-pending { color: #f39c12; font-weight: bold; }
-    .status-accept { color: #27ae60; font-weight: bold; }
-    .status-reject { color: #e74c3c; font-weight: bold; }
-    </style>
-    """, unsafe_allow_name=True)
+</style>
+""", unsafe_allow_html=True)
 
 def main():
     st.title("🌍 GIS Coordinate Verification Prototype")
     st.markdown("---")
     
-    # Sidebar: File Upload
+    # Sidebar: Branding & File Upload
     with st.sidebar:
+        # Logo Section - Check for valid file
+        logo_path = "assets/logo.png"
+        if os.path.exists(logo_path) and os.path.getsize(logo_path) > 0:
+            # Centered, smaller logo
+            left_co, cent_co, last_co = st.columns([1, 2, 1])
+            with cent_co:
+                st.image(logo_path, width=120)
+            
+            st.markdown("""
+                <div style='text-align: center; margin-bottom: 20px;'>
+                    <h3 style='margin-top:0;'>
+                        <span style='color: #27ae60;'>Graphmen</span> 
+                        <span style='color: #2E86C1;'>Geospatial</span>
+                    </h3>
+                </div>
+            """, unsafe_allow_html=True)
+            st.markdown("---")  # Clear separation between brand and upload
+        else:
+            st.title("🌱 Graphmen Geospatial")
+            st.markdown("---")
+            
         st.header("Upload Files")
         uploaded_files = st.file_uploader(
             "Upload CSV or Excel files",
@@ -50,9 +74,11 @@ def main():
         st.info("Files are processed in-memory for security.")
         
         if uploaded_files:
-            if st.button("Clear All Data"):
+            if st.button("🗑️ Clear All Data", type="secondary"):
                 st.session_state.data = None
                 st.rerun()
+        
+        st.markdown("---")
 
     # Initialize session state for data
     if 'data' not in st.session_state:
@@ -82,9 +108,19 @@ def main():
                 combined_df['Status'] = 'Pending'
                 st.session_state.data = combined_df
             elif len(st.session_state.data) != len(combined_df):
-                 # Handle new uploads if needed, for simplicity we replace if empty or re-init
                  combined_df['Status'] = 'Pending'
                  st.session_state.data = combined_df
+
+            # Compact Metrics Row
+            mcol1, mcol2, mcol3 = st.columns(3)
+            with mcol1:
+                st.info(f"📍 Total: **{len(st.session_state.data)}**")
+            with mcol2:
+                st.success(f"✅ Accepted: **{len(st.session_state.data[st.session_state.data['Status'] == 'Accept'])}**")
+            with mcol3:
+                st.error(f"❌ Rejected: **{len(st.session_state.data[st.session_state.data['Status'] == 'Reject'])}**")
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
             # UI Breakdown
             col1, col2 = st.columns([1, 1])
@@ -132,62 +168,91 @@ def main():
             with col2:
                 st.subheader("📋 Verification Workflow")
                 
-                # Interactive Data Editor
-                # We prioritize showing Lat, Lon, Status, and name if available
-                display_cols = ['Status', lat_col, lon_col] if lat_col and lon_col else ['Status']
-                other_cols = [c for c in st.session_state.data.columns if c not in display_cols]
+                # Export Section (Now at Top for Convenience)
+                accepted_df = st.session_state.data[st.session_state.data['Status'] == 'Accept']
+                if not accepted_df.empty:
+                    st.success(f"🎉 **{len(accepted_df)}** points verified!")
+                    
+                    st.markdown('<div class="compact-btn">', unsafe_allow_html=True)
+                    exp_col1, exp_col2, exp_col3, exp_col4 = st.columns(4)
+                    
+                    with exp_col1:
+                        csv = accepted_df.to_csv(index=False).encode('utf-8')
+                        st.download_button("📥 CSV", data=csv, file_name=utils.get_download_filename("data", "csv"), mime="text/csv", use_container_width=True)
+                    
+                    with exp_col2:
+                        kml_str = utils.generate_kml(accepted_df, lat_col, lon_col)
+                        st.download_button("🌍 KML", data=kml_str, file_name=utils.get_download_filename("data", "kml"), mime="application/vnd.google-earth.kml+xml", use_container_width=True)
+                    
+                    with exp_col3:
+                        geojson_str = utils.generate_geojson(accepted_df, lat_col, lon_col)
+                        st.download_button("🟢 GeoJSON", data=geojson_str, file_name=utils.get_download_filename("data", "geojson"), mime="application/geo+json", use_container_width=True)
+                        
+                    with exp_col4:
+                        try:
+                            shp_zip = utils.generate_shapefile_zip(accepted_df, lat_col, lon_col)
+                            st.download_button("📦 SHP", data=shp_zip, file_name=utils.get_download_filename("data", "zip"), mime="application/zip", use_container_width=True)
+                        except:
+                            st.button("📦 SHP Error", disabled=True, use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown("---")
+                else:
+                    st.info("💡 **Select 'Accept' in the table below** to enable these buttons.")
                 
-                edited_df = st.data_editor(
-                    st.session_state.data[display_cols + other_cols],
-                    column_config={
-                        "Status": st.column_config.SelectboxColumn(
-                            "Verification Status",
-                            options=["Pending", "Accept", "Reject"],
-                            required=True,
-                        ),
-                    },
-                    hide_index=True,
-                    num_rows="dynamic",
-                    key="data_editor"
-                )
+                # Bulk Actions Bar
+                bcol1, bcol2 = st.columns(2)
+                with bcol1:
+                    if st.button("✅ Accept All Currently Shown", use_container_width=True):
+                        st.session_state.data['Status'] = 'Accept'
+                        st.rerun()
+                with bcol2:
+                    if st.button("❌ Reject All Currently Shown", use_container_width=True):
+                        st.session_state.data['Status'] = 'Reject'
+                        st.rerun()
+
+                st.markdown("---")
+
+                # Interactive Data Editor
+                # Status at the END (far right)
+                other_cols = [c for c in st.session_state.data.columns if c != 'Status']
+                
+                st.markdown("""
+                💡 **Pro Tip:** **Click the text 'Pending' in the last column** of any row to select **Accept**.
+                """)
+                st.markdown("⬇️ **Select 'Accept' in the Status column (far right) below:**")
+                
+                # Container with border to make editor stand out
+                with st.container(border=True):
+                    edited_df = st.data_editor(
+                        st.session_state.data[other_cols + ['Status']],
+                        column_config={
+                            "Status": st.column_config.SelectboxColumn(
+                                "🔘 Status (Click me)",
+                                help="Click the 'Pending' text below to change me!",
+                                options=["Pending", "Accept", "Reject"],
+                                required=True,
+                                width="large"
+                            ),
+                        },
+                        hide_index=True,
+                        num_rows="dynamic",
+                        height=500,
+                        key="data_editor",
+                        use_container_width=True
+                    )
                 
                 if not edited_df.equals(st.session_state.data):
                     st.session_state.data = edited_df
 
-                # Export Section
-                st.subheader("📤 Export Results")
-                if st.session_state.data is not None:
-                    accepted_df = st.session_state.data[st.session_state.data['Status'] == 'Accept']
-                    
-                    st.write(f"Points Accepted: {len(accepted_df)}")
-                    
-                    ecol1, ecol2 = st.columns(2)
-                    
-                    with ecol1:
-                        # CSV Export
-                        csv = accepted_df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="Download Accepted CSV",
-                            data=csv,
-                            file_name=utils.get_download_filename("data", "csv"),
-                            mime="text/csv"
-                        )
-                    
-                    with ecol2:
-                        # KML Export
-                        if lat_col and lon_col:
-                            try:
-                                kml_str = utils.generate_kml(accepted_df, lat_col, lon_col)
-                                st.download_button(
-                                    label="Download Accepted KML",
-                                    data=kml_str,
-                                    file_name=utils.get_download_filename("data", "kml"),
-                                    mime="application/vnd.google-earth.kml+xml"
-                                )
-                            except Exception as e:
-                                st.error(f"KML Error: {e}")
-                        else:
-                            st.warning("Cannot export KML: Latitude/Longitude columns not identified.")
+                # End of Workflow Section
+                
+        # Footer
+        st.markdown("---")
+        st.markdown("""
+            <div style='text-align: center; padding: 20px; color: #7f8c8d; font-size: 0.8rem; background: rgba(255,255,255,0.5); border-radius: 10px; backdrop-filter: blur(5px);'>
+                🌍 <b>GIS Verification Tool</b> | Built By Manuel Ndebele(Graphmen Geospatial) | manuza3993@gmail.com/ graphmen.geo@gmail.com--+263773807928
+            </div>
+        """, unsafe_allow_html=True)
 
     else:
         # Welcome Screen
